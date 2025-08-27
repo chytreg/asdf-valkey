@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for valkey.
-GH_REPO="https://github.com/dgertych-monterail/valkey"
+GH_REPO="https://github.com/valkey-io/valkey"
 TOOL_NAME="valkey"
 TOOL_TEST="valkey-server --version"
 
@@ -42,7 +41,7 @@ download_release() {
 	filename="$2"
 
 	# TODO: Adapt the release URL convention for valkey
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	url="$GH_REPO/archive/${version}.tar.gz"
 
 	echo "* Downloading $TOOL_NAME release $version..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
@@ -59,9 +58,19 @@ install_version() {
 
 	(
 		mkdir -p "$install_path"
-		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-		# TODO: Assert valkey executable exists.
+		# Change to the downloaded source directory
+		cd "$ASDF_DOWNLOAD_PATH"
+		echo "* Building $TOOL_NAME $version..."
+		# Clean any previous build artifacts
+		make clean 2>/dev/null || true
+		# Build Valkey from source
+		make || fail "Failed to build $TOOL_NAME"
+		echo "* Installing $TOOL_NAME $version..."
+		# Install to the asdf installation directory
+		make PREFIX="$(dirname "$install_path")" install || fail "Failed to install $TOOL_NAME"
+
+		# Verify the executable exists
 		local tool_cmd
 		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
 		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
